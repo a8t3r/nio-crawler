@@ -2,6 +2,7 @@ package niocrawler.job;
 
 import niocrawler.Job;
 import niocrawler.page.Page;
+import niocrawler.page.PageURI;
 import niocrawler.utils.UrlUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,13 +29,13 @@ public class SimpleJob implements Job {
     }
 
     @Override
-    public boolean visit(URI url) {
-        return UrlUtils.sameHost(startPage, url);
+    public boolean visit(PageURI url) {
+        return UrlUtils.sameHost(startPage, url.getUri());
     }
 
     @Override
     public void process(Page page) {
-        logger.debug(page.getBody());
+        logger.debug(page.getUri().toString() + ": " + page.getLevel());
     }
 
     @Override

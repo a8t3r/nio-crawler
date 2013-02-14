@@ -25,13 +25,15 @@ public class Page {
     private int statusCode;
     private Map<String, String> headers;
     private String body;
+    private int level;
 
-    public Page(URI uri, byte[] data) {
-        this.uri = uri;
+    public Page(PageURI pageURI, byte[] data) {
+        this.uri = pageURI.getUri();
+        this.level = pageURI.getLevel();
         this.data = data;
     }
 
-    public void process() {
+    public void parseData() {
         HttpParser parser = new HttpParser();
         HttpParserData parserData = parser.parse(data);
 
@@ -56,18 +58,22 @@ public class Page {
         return headers.get(name);
     }
 
+    public int getLevel() {
+        return level;
+    }
+
     public List<URI> getLinks() {
         Document doc = Jsoup.parse(body);
         Elements elems = doc.select("a[href]");
 
-        ArrayList<URI> links = new ArrayList<URI>();
+        List<URI> links = new ArrayList<URI>();
         for (Element elem : elems) {
             try {
                 String href = elem.attr("href");
 
                 // see
                 // http://stackoverflow.com/questions/724043/http-url-address-encoding-in-java
-                URI link = new URI(href.replaceAll("\\s", "%20"));
+                URI link = new URI(href.trim().replaceAll("\\s", "%20"));
                 link = new URI(link.toASCIIString());
 
                 link = uri.resolve(link);

@@ -14,7 +14,9 @@ public class HttpFetcherFactory {
 
     public static HttpFetcher newFetcherFor(BlockingQueue<Page> pages) {
         try {
-            return new HttpFetcherNIOImpl(pages);
+            HttpFetcherNIOImpl fetcher = new HttpFetcherNIOImpl();
+            fetcher.init(pages);
+            return fetcher;
         } catch (IOException e) {
             throw new IllegalStateException("Can't open selector", e);
         }

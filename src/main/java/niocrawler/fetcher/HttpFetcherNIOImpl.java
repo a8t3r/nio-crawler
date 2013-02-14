@@ -2,6 +2,7 @@ package niocrawler.fetcher;
 
 import niocrawler.HttpFetcher;
 import niocrawler.page.Page;
+import niocrawler.page.PageURI;
 import niocrawler.utils.HttpRequestBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,17 +33,21 @@ public class HttpFetcherNIOImpl implements HttpFetcher {
     private BlockingQueue<Page> pagesQueue;
     private HttpRequestBuilder httpRequestBuilder;
 
-    public HttpFetcherNIOImpl(BlockingQueue<Page> pagesQueue) throws IOException {
+    public HttpFetcherNIOImpl() {
         this.readBuffer = ByteBuffer.allocate(8192);
         this.writeBuffers = new HashMap<URI, ByteBuffer>();
         this.streams = new HashMap<URI, ByteArrayOutputStream>();
         this.httpRequestBuilder = new HttpRequestBuilder();
+    }
+
+    @Override
+    public void init(BlockingQueue<Page> pagesQueue) throws IOException {
         this.pagesQueue = pagesQueue;
         this.selector = SelectorProvider.provider().openSelector();
     }
 
     @Override
-    public void fetch(BlockingQueue<URI> linksQueue) {
+    public void fetch(BlockingQueue<PageURI> linksQueue) {
         while (!Thread.interrupted()) {
             try {
                 initiateNewConnections(linksQueue);
@@ -73,21 +78,29 @@ public class HttpFetcherNIOImpl implements HttpFetcher {
             } catch (IOException e) {
                 logger.error("IOException", e);
                 break;
+            } finally {
+                try {
+                    selector.close();
+                } catch (IOException ignored) {
+
+                }
             }
         }
     }
 
-    private void initiateNewConnections(BlockingQueue<URI> linksQueue) throws IOException {
+    private void initiateNewConnections(BlockingQueue<PageURI> linksQueue) throws IOException {
         // Initiate a maximum of N new connections
         int i = CONNECTION_LIMIT;
         while (i -- > 0) {
             // Fetch without blocking
-            URI url = linksQueue.poll();
+            PageURI pageURI = linksQueue.poll();
 
             // We will retry at next iteration
-            if (url == null) {
+            if (pageURI == null) {
                 break;
             }
+
+            URI url = pageURI.getUri();
 
             // Create a non-blocking socket channel
             SocketChannel socketChannel = SocketChannel.open();
@@ -98,7 +111,7 @@ public class HttpFetcherNIOImpl implements HttpFetcher {
             socketChannel.connect(new InetSocketAddress(url.getHost(), port));
 
             SelectionKey key = socketChannel.register(selector, SelectionKey.OP_CONNECT);
-            key.attach(url);
+            key.attach(pageURI);
 
             streams.put(url, new ByteArrayOutputStream());
         }
@@ -113,20 +126,20 @@ public class HttpFetcherNIOImpl implements HttpFetcher {
     }
 
     private void write(SelectionKey key) throws IOException {
-        URI url = (URI) key.attachment();
+        PageURI url = (PageURI) key.attachment();
         SocketChannel socketChannel = (SocketChannel) key.channel();
 
-        ByteBuffer writeBuffer = writeBuffers.get(url);
+        ByteBuffer writeBuffer = writeBuffers.get(url.getUri());
         if (writeBuffer == null) {
-            String getRequest = httpRequestBuilder.buildGet(url);
+            String getRequest = httpRequestBuilder.buildGet(url.getUri());
             writeBuffer = ByteBuffer.wrap(getRequest.getBytes());
-            writeBuffers.put(url, writeBuffer);
+            writeBuffers.put(url.getUri(), writeBuffer);
         }
 
         socketChannel.write(writeBuffer);
         if (!writeBuffer.hasRemaining()) {
             // Remove write buffer
-            writeBuffers.remove(url);
+            writeBuffers.remove(url.getUri());
 
             // We now want to read
             key.interestOps(SelectionKey.OP_READ);
@@ -134,20 +147,20 @@ public class HttpFetcherNIOImpl implements HttpFetcher {
     }
 
     private void read(SelectionKey key) throws IOException {
-        URI url = (URI) key.attachment();
+        PageURI url = (PageURI) key.attachment();
         SocketChannel socketChannel = (SocketChannel) key.channel();
 
         readBuffer.clear();
         int numRead = socketChannel.read(readBuffer);
         if (numRead > 0) {
-            streams.get(url).write(readBuffer.array(), 0, numRead);
+            streams.get(url.getUri()).write(readBuffer.array(), 0, numRead);
         } else {
             // Reading is complete
             key.channel().close();
             key.cancel();
 
             // Add to page queue
-            ByteArrayOutputStream stream = streams.remove(url);
+            ByteArrayOutputStream stream = streams.remove(url.getUri());
             Page page = new Page(url, stream.toByteArray());
             pagesQueue.add(page);
         }
