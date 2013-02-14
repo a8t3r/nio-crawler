@@ -1,7 +1,9 @@
 package niocrawler.page;
 
+import niocrawler.HttpFetcher;
 import niocrawler.Job;
 import niocrawler.LinksStorage;
+import niocrawler.fetcher.HttpFetcherFactory;
 import niocrawler.storage.LinksStorageMemImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -9,9 +11,7 @@ import org.slf4j.LoggerFactory;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 public class PageHandler implements Runnable {
 
@@ -22,23 +22,12 @@ public class PageHandler implements Runnable {
     private LinksStorage linksStorage;
     private Job job;
 
-    public PageHandler(String startPage, Job job) {
+    public PageHandler(Job job) {
         this.linksQueue = new LinkedBlockingQueue<URI>();
+        this.linksQueue.add(job.startPage());
         this.pagesQueue = new LinkedBlockingQueue<Page>();
         this.linksStorage = new LinksStorageMemImpl();
         this.job = job;
-
-        addStartPage(startPage);
-    }
-
-    private void addStartPage(String startPage) {
-        try {
-            this.linksQueue.put(new URI(startPage));
-        } catch (InterruptedException e) {
-            throw new IllegalStateException("Interrupted");
-        } catch (URISyntaxException e) {
-            throw new IllegalArgumentException("Incorrect start page", e);
-        }
     }
 
     /**
@@ -55,15 +44,32 @@ public class PageHandler implements Runnable {
         }
     }
 
+    public void start() {
+        start(HttpFetcherFactory.newFetcherFor(getPagesQueue()));
+    }
+
+    public void start(HttpFetcher fetcher) {
+        ExecutorService executorService = Executors.newSingleThreadExecutor();
+        executorService.submit(this);
+        fetcher.fetch(getLinksQueue());
+    }
+
     @Override
     public void run() {
         while (!Thread.interrupted()) {
-            Page page;
-            try {
-                page = pagesQueue.poll(1, TimeUnit.SECONDS);
-            } catch (InterruptedException e) {
-                logger.info("Interrupted");
-                return;
+            Page page = null;
+
+            while (page == null) {
+                try {
+                    page = pagesQueue.poll(1, TimeUnit.MINUTES);
+                } catch (InterruptedException e) {
+                    logger.info("Interrupted");
+                    return;
+                }
+
+                if (page == null) {
+                    logger.debug("Empty queue");
+                }
             }
 
             logger.debug("Handling " + page.getUri());

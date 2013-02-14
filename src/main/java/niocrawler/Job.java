@@ -8,4 +8,6 @@ public interface Job {
     boolean visit(URI url);
 
     void process(Page page);
+
+    URI startPage();
 }

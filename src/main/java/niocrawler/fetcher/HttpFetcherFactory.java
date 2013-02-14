@@ -1,5 +1,6 @@
 package niocrawler.fetcher;
 
+import niocrawler.HttpFetcher;
 import niocrawler.page.Page;
 
 import java.io.IOException;

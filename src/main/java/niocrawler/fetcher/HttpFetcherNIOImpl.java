@@ -1,5 +1,6 @@
 package niocrawler.fetcher;
 
+import niocrawler.HttpFetcher;
 import niocrawler.page.Page;
 import niocrawler.utils.HttpRequestBuilder;
 import org.slf4j.Logger;
@@ -69,8 +70,8 @@ public class HttpFetcherNIOImpl implements HttpFetcher {
                         read(key);
                     }
                 }
-            } catch (Exception e) {
-                logger.error("Unexpected exception", e);
+            } catch (IOException e) {
+                logger.error("IOException", e);
                 break;
             }
         }

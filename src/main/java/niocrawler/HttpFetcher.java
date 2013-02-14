@@ -1,4 +1,4 @@
-package niocrawler.fetcher;
+package niocrawler;
 
 import java.net.URI;
 import java.util.concurrent.BlockingQueue;
