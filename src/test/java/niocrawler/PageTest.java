@@ -1,6 +1,7 @@
 package niocrawler;
 
 import niocrawler.page.Page;
+import niocrawler.page.PageURI;
 import org.apache.commons.io.FileUtils;
 import org.junit.Before;
 import org.junit.Test;
@@ -21,8 +22,8 @@ public class PageTest {
         String data = FileUtils.readFileToString(file);
 
         URI url = new URI("http://localhost:4567/ho");
-        page = new Page(url, data.getBytes());
-        page.process();
+        page = new Page(new PageURI(url, 0), data.getBytes());
+        page.parseData();
     }
 
     @Test
