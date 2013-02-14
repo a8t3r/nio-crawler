@@ -1,8 +1,8 @@
 package niocrawler;
 
 import java.net.URI;
-import java.util.List;
+import java.util.concurrent.BlockingQueue;
 
 public interface HttpFetcher {
-    void fetch(List<URI> urls);
+    void fetch(BlockingQueue<URI> linksQueue);
 }

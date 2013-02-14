@@ -1,5 +1,8 @@
 package niocrawler;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -14,25 +17,32 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 
-public class HttpFetcherNIOImpl {
-    private Selector selector;
-    private ByteBuffer readBuffer = ByteBuffer.allocate(8192);
-    private Map<URI, ByteBuffer> writeBuffers = new HashMap<URI, ByteBuffer>();
-    private Map<URI, ByteArrayOutputStream> streams = new HashMap<URI, ByteArrayOutputStream>();
-    private BlockingQueue<URI> linksQueue;
-    private BlockingQueue<Page> pagesQueue;
-    private HttpRequestBuilder httpRequestBuilder = new HttpRequestBuilder();
+public class HttpFetcherNIOImpl implements HttpFetcher {
 
-    public HttpFetcherNIOImpl(BlockingQueue<URI> linksQueue, BlockingQueue<Page> pagesQueue) throws IOException {
-        this.linksQueue = linksQueue;
+    private static final Logger logger = LoggerFactory.getLogger(HttpFetcherNIOImpl.class);
+    public static final int CONNECTION_LIMIT = 10;
+
+    private Selector selector;
+    private ByteBuffer readBuffer;
+    private Map<URI, ByteBuffer> writeBuffers;
+    private Map<URI, ByteArrayOutputStream> streams;
+    private BlockingQueue<Page> pagesQueue;
+    private HttpRequestBuilder httpRequestBuilder;
+
+    public HttpFetcherNIOImpl(BlockingQueue<Page> pagesQueue) throws IOException {
+        this.readBuffer = ByteBuffer.allocate(8192);
+        this.writeBuffers = new HashMap<URI, ByteBuffer>();
+        this.streams = new HashMap<URI, ByteArrayOutputStream>();
+        this.httpRequestBuilder = new HttpRequestBuilder();
         this.pagesQueue = pagesQueue;
         this.selector = SelectorProvider.provider().openSelector();
     }
 
-    public void fetch() {
-        while (true) {
+    @Override
+    public void fetch(BlockingQueue<URI> linksQueue) {
+        while (!Thread.interrupted()) {
             try {
-                initiateNewConnections();
+                initiateNewConnections(linksQueue);
 
                 int nb = selector.select(1000);
                 if (nb == 0 && linksQueue.isEmpty()) {
@@ -40,10 +50,10 @@ public class HttpFetcherNIOImpl {
                 }
 
                 // Iterate over the set of keys for which events are available
-                Iterator<SelectionKey> iter = selector.selectedKeys().iterator();
-                while (iter.hasNext()) {
-                    SelectionKey key = iter.next();
-                    iter.remove();
+                Iterator<SelectionKey> iterator = selector.selectedKeys().iterator();
+                while (iterator.hasNext()) {
+                    SelectionKey key = iterator.next();
+                    iterator.remove();
 
                     if (!key.isValid()) {
                         continue;
@@ -58,15 +68,16 @@ public class HttpFetcherNIOImpl {
                     }
                 }
             } catch (Exception e) {
-                e.printStackTrace();
+                logger.error("Unexpected exception", e);
                 break;
             }
         }
     }
 
-    private void initiateNewConnections() throws IOException {
-        // Initiate a maximum of 10 new connections
-        for (int i = 0; i < 10; i++) {
+    private void initiateNewConnections(BlockingQueue<URI> linksQueue) throws IOException {
+        // Initiate a maximum of N new connections
+        int i = CONNECTION_LIMIT;
+        while (i -- > 0) {
             // Fetch without blocking
             URI url = linksQueue.poll();
 

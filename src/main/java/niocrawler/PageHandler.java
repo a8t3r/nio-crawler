@@ -1,23 +1,28 @@
 package niocrawler;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 public class PageHandler implements Runnable {
+
+    private static final Logger logger = LoggerFactory.getLogger(PageHandler.class);
+
     private BlockingQueue<Page> pagesQueue;
-
     private BlockingQueue<URI> linksQueue;
-
-    private Job job;
-
     private LinksStorage linksStorage;
+    private Job job;
 
     public PageHandler(BlockingQueue<Page> pagesQueue, BlockingQueue<URI> linksQueue, Job job, LinksStorage linksStorage) {
         this.pagesQueue = pagesQueue;
         this.linksQueue = linksQueue;
-        this.job = job;
         this.linksStorage = linksStorage;
+        this.job = job;
     }
 
     /**
@@ -36,34 +41,44 @@ public class PageHandler implements Runnable {
 
     @Override
     public void run() {
-        while (true) {
+        while (!Thread.interrupted()) {
+            Page page;
             try {
-                Page page = pagesQueue.take();
-                System.out.println("Handling " + page.getUri());
-                page.process();
+                page = pagesQueue.poll(1, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                logger.info("Interrupted");
+                return;
+            }
 
-                if (page.getStatusCode() == 200) {
-                    // Let the user's job process this page
-                    job.process(page);
+            logger.debug("Handling " + page.getUri());
+            page.process();
 
-                    String contentType = page.getHeader("Content-Type");
-                    if (contentType.startsWith("text/html")) {
-                        List<URI> links = page.getLinks();
-                        for (URI link : links) {
-                            add(link);
-                        }
+            int statusCode = page.getStatusCode();
+            if (statusCode == 200) {
+                // Let the user's job process this page
+                job.process(page);
+
+                String contentType = page.getHeader("Content-Type");
+                if (contentType.startsWith("text/html")) {
+                    List<URI> links = page.getLinks();
+                    for (URI link : links) {
+                        add(link);
                     }
-                } else if (page.getStatusCode() == 301 || page.getStatusCode() == 302) {
-                    // TODO handle case when location is relative
-                    URI location = new URI(page.getHeader("Location"));
-                    add(location);
-                } else {
-                    // Log that page was not fetched successfully
-                    System.out.println(String.format("Skip [%s] because of status code %d", page.getUri(), page.getStatusCode()));
                 }
-            } catch (Exception e) {
-                e.printStackTrace();
-                break;
+            } else if (statusCode == 301 || statusCode == 302) {
+                // TODO handle case when location is relative
+
+                String header = page.getHeader("Location");
+                try {
+                    URI location = new URI(header);
+                    add(location);
+                } catch (URISyntaxException e) {
+                    logger.debug("Skip {} because of incorrect form", header);
+                    continue;
+                }
+            } else {
+                // Log that page was not fetched successfully
+                logger.debug("Skip [{}] because of status code {}", page.getUri(), statusCode);
             }
         }
     }

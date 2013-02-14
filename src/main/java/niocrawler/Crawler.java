@@ -22,7 +22,7 @@ public class Crawler {
         thread.setDaemon(true);
         thread.start();
 
-        HttpFetcherNIOImpl client = new HttpFetcherNIOImpl(linksQueue, pagesQueue);
-        client.fetch();
+        HttpFetcherNIOImpl client = new HttpFetcherNIOImpl(pagesQueue);
+        client.fetch(linksQueue);
     }
 }
