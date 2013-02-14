@@ -14,88 +14,64 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 
-public class HttpFetcherNIOImpl
-{
-    private Selector                        selector;
+public class HttpFetcherNIOImpl {
+    private Selector selector;
+    private ByteBuffer readBuffer = ByteBuffer.allocate(8192);
+    private Map<URI, ByteBuffer> writeBuffers = new HashMap<URI, ByteBuffer>();
+    private Map<URI, ByteArrayOutputStream> streams = new HashMap<URI, ByteArrayOutputStream>();
+    private BlockingQueue<URI> linksQueue;
+    private BlockingQueue<Page> pagesQueue;
+    private HttpRequestBuilder httpRequestBuilder = new HttpRequestBuilder();
 
-    private ByteBuffer                      readBuffer         = ByteBuffer.allocate(8192);
-
-    private Map<URI, ByteBuffer>            writeBuffers       = new HashMap<URI, ByteBuffer>();
-
-    private Map<URI, ByteArrayOutputStream> streams            = new HashMap<URI, ByteArrayOutputStream>();
-
-    private BlockingQueue<URI>              linksQueue;
-
-    private BlockingQueue<Page>             pagesQueue;
-
-    private HttpRequestBuilder              httpRequestBuilder = new HttpRequestBuilder();
-
-    public HttpFetcherNIOImpl(BlockingQueue<URI> linksQueue, BlockingQueue<Page> pagesQueue) throws IOException
-    {
+    public HttpFetcherNIOImpl(BlockingQueue<URI> linksQueue, BlockingQueue<Page> pagesQueue) throws IOException {
         this.linksQueue = linksQueue;
         this.pagesQueue = pagesQueue;
         this.selector = SelectorProvider.provider().openSelector();
     }
 
-    public void fetch()
-    {
-        while (true)
-        {
-            try
-            {
+    public void fetch() {
+        while (true) {
+            try {
                 initiateNewConnections();
 
                 int nb = selector.select(1000);
-                if (nb == 0 && linksQueue.isEmpty())
-                {
+                if (nb == 0 && linksQueue.isEmpty()) {
                     break;
                 }
 
                 // Iterate over the set of keys for which events are available
                 Iterator<SelectionKey> iter = selector.selectedKeys().iterator();
-                while (iter.hasNext())
-                {
+                while (iter.hasNext()) {
                     SelectionKey key = iter.next();
                     iter.remove();
 
-                    if (!key.isValid())
-                    {
+                    if (!key.isValid()) {
                         continue;
                     }
 
-                    if (key.isConnectable())
-                    {
+                    if (key.isConnectable()) {
                         connect(key);
-                    }
-                    else if (key.isWritable())
-                    {
+                    } else if (key.isWritable()) {
                         write(key);
-                    }
-                    else if (key.isReadable())
-                    {
+                    } else if (key.isReadable()) {
                         read(key);
                     }
                 }
-            }
-            catch (Exception e)
-            {
+            } catch (Exception e) {
                 e.printStackTrace();
                 break;
             }
         }
     }
 
-    private void initiateNewConnections() throws IOException
-    {
+    private void initiateNewConnections() throws IOException {
         // Initiate a maximum of 10 new connections
-        for (int i = 0; i < 10; i++)
-        {
+        for (int i = 0; i < 10; i++) {
             // Fetch without blocking
             URI url = linksQueue.poll();
 
             // We will retry at next iteration
-            if (url == null)
-            {
+            if (url == null) {
                 break;
             }
 
@@ -114,8 +90,7 @@ public class HttpFetcherNIOImpl
         }
     }
 
-    private void connect(SelectionKey key) throws IOException
-    {
+    private void connect(SelectionKey key) throws IOException {
         SocketChannel socketChannel = (SocketChannel) key.channel();
         socketChannel.finishConnect();
 
@@ -123,22 +98,19 @@ public class HttpFetcherNIOImpl
         key.interestOps(SelectionKey.OP_WRITE);
     }
 
-    private void write(SelectionKey key) throws IOException
-    {
+    private void write(SelectionKey key) throws IOException {
         URI url = (URI) key.attachment();
         SocketChannel socketChannel = (SocketChannel) key.channel();
 
         ByteBuffer writeBuffer = writeBuffers.get(url);
-        if (writeBuffer == null)
-        {
+        if (writeBuffer == null) {
             String getRequest = httpRequestBuilder.buildGet(url);
             writeBuffer = ByteBuffer.wrap(getRequest.getBytes());
             writeBuffers.put(url, writeBuffer);
         }
 
         socketChannel.write(writeBuffer);
-        if (!writeBuffer.hasRemaining())
-        {
+        if (!writeBuffer.hasRemaining()) {
             // Remove write buffer
             writeBuffers.remove(url);
 
@@ -147,19 +119,15 @@ public class HttpFetcherNIOImpl
         }
     }
 
-    private void read(SelectionKey key) throws IOException
-    {
+    private void read(SelectionKey key) throws IOException {
         URI url = (URI) key.attachment();
         SocketChannel socketChannel = (SocketChannel) key.channel();
 
         readBuffer.clear();
         int numRead = socketChannel.read(readBuffer);
-        if (numRead > 0)
-        {
+        if (numRead > 0) {
             streams.get(url).write(readBuffer.array(), 0, numRead);
-        }
-        else
-        {
+        } else {
             // Reading is complete
             key.channel().close();
             key.cancel();

@@ -3,20 +3,18 @@ package niocrawler;
 import java.util.Collections;
 import java.util.Map;
 
-public class HttpParserData
-{
-    private int                 statusCode;
+public class HttpParserData {
+    private int statusCode;
 
-    private String              httpVersion;
+    private String httpVersion;
 
-    private String              reasonPhrase;
+    private String reasonPhrase;
 
     private Map<String, String> httpFields;
 
-    private String              body;
+    private String body;
 
-    public HttpParserData(int statusCode, String httpVersion, String reasonPhrase, Map<String, String> httpFields, String body)
-    {
+    public HttpParserData(int statusCode, String httpVersion, String reasonPhrase, Map<String, String> httpFields, String body) {
         this.httpFields = Collections.unmodifiableMap(httpFields);
         this.reasonPhrase = reasonPhrase;
         this.statusCode = statusCode;
@@ -24,28 +22,23 @@ public class HttpParserData
         this.body = body;
     }
 
-    public Map<String, String> getHttpFields()
-    {
+    public Map<String, String> getHttpFields() {
         return httpFields;
     }
 
-    public String getReasonPhrase()
-    {
+    public String getReasonPhrase() {
         return reasonPhrase;
     }
 
-    public int getStatusCode()
-    {
+    public int getStatusCode() {
         return statusCode;
     }
 
-    public String getHttpVersion()
-    {
+    public String getHttpVersion() {
         return httpVersion;
     }
 
-    public String getBody()
-    {
+    public String getBody() {
         return body;
     }
 }

@@ -4,10 +4,8 @@ import java.net.URI;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
-public class Crawler
-{
-    public static void main(String[] args) throws Exception
-    {
+public class Crawler {
+    public static void main(String[] args) throws Exception {
         // TODO get from args
         TestJob crawler = new TestJob();
 
