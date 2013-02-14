@@ -1,5 +1,8 @@
-package niocrawler;
+package niocrawler.page;
 
+import niocrawler.Job;
+import niocrawler.LinksStorage;
+import niocrawler.storage.LinksStorageMemImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -7,6 +10,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 public class PageHandler implements Runnable {
@@ -18,11 +22,23 @@ public class PageHandler implements Runnable {
     private LinksStorage linksStorage;
     private Job job;
 
-    public PageHandler(BlockingQueue<Page> pagesQueue, BlockingQueue<URI> linksQueue, Job job, LinksStorage linksStorage) {
-        this.pagesQueue = pagesQueue;
-        this.linksQueue = linksQueue;
-        this.linksStorage = linksStorage;
+    public PageHandler(String startPage, Job job) {
+        this.linksQueue = new LinkedBlockingQueue<URI>();
+        this.pagesQueue = new LinkedBlockingQueue<Page>();
+        this.linksStorage = new LinksStorageMemImpl();
         this.job = job;
+
+        addStartPage(startPage);
+    }
+
+    private void addStartPage(String startPage) {
+        try {
+            this.linksQueue.put(new URI(startPage));
+        } catch (InterruptedException e) {
+            throw new IllegalStateException("Interrupted");
+        } catch (URISyntaxException e) {
+            throw new IllegalArgumentException("Incorrect start page", e);
+        }
     }
 
     /**
@@ -81,5 +97,13 @@ public class PageHandler implements Runnable {
                 logger.debug("Skip [{}] because of status code {}", page.getUri(), statusCode);
             }
         }
+    }
+
+    public BlockingQueue<Page> getPagesQueue() {
+        return pagesQueue;
+    }
+
+    public BlockingQueue<URI> getLinksQueue() {
+        return linksQueue;
     }
 }

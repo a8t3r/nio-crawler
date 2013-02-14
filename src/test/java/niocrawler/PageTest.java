@@ -1,5 +1,6 @@
 package niocrawler;
 
+import niocrawler.page.Page;
 import org.apache.commons.io.FileUtils;
 import org.junit.Before;
 import org.junit.Test;

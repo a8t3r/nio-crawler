@@ -1,4 +1,6 @@
-package niocrawler;
+package niocrawler.fetcher;
+
+import niocrawler.page.Page;
 
 import java.io.IOException;
 import java.util.concurrent.BlockingQueue;

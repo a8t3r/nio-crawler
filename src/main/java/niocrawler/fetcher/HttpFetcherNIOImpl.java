@@ -1,5 +1,7 @@
-package niocrawler;
+package niocrawler.fetcher;
 
+import niocrawler.page.Page;
+import niocrawler.utils.HttpRequestBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

@@ -1,4 +1,4 @@
-package niocrawler;
+package niocrawler.parser;
 
 public class HttpParserException extends RuntimeException {
     private static final long serialVersionUID = -7563040337362868784L;

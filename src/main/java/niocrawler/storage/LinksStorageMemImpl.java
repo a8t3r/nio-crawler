@@ -1,4 +1,6 @@
-package niocrawler;
+package niocrawler.storage;
+
+import niocrawler.LinksStorage;
 
 import java.net.URI;
 import java.util.HashSet;

@@ -1,4 +1,4 @@
-package niocrawler;
+package niocrawler.parser;
 
 import java.util.Collections;
 import java.util.Map;

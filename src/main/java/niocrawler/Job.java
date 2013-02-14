@@ -1,5 +1,7 @@
 package niocrawler;
 
+import niocrawler.page.Page;
+
 import java.net.URI;
 
 public interface Job {

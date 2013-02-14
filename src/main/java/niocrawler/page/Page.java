@@ -1,10 +1,14 @@
-package niocrawler;
+package niocrawler.page;
 
+import niocrawler.parser.HttpParser;
+import niocrawler.parser.HttpParserData;
 import org.apache.commons.lang.StringUtils;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -13,14 +17,13 @@ import java.util.List;
 import java.util.Map;
 
 public class Page {
+
+    private static final Logger logger = LoggerFactory.getLogger(Page.class);
+
     private URI uri;
-
     private byte[] data;
-
     private int statusCode;
-
     private Map<String, String> headers;
-
     private String body;
 
     public Page(URI uri, byte[] data) {
@@ -74,7 +77,7 @@ public class Page {
                 }
                 // else: this is probably not a http link, skip it
             } catch (URISyntaxException e) {
-                e.printStackTrace();
+                logger.debug(e.getMessage());
             }
         }
         return links;

@@ -1,6 +1,6 @@
 
 // line 1 "../../resources/HttpParser.rl"
-package niocrawler;
+package niocrawler.parser;
 
 import java.util.HashMap;
 import java.util.Map;

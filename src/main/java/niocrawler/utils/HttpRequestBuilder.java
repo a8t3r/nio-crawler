@@ -1,4 +1,4 @@
-package niocrawler;
+package niocrawler.utils;
 
 import org.apache.commons.lang.StringUtils;
 

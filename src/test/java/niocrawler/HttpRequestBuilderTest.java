@@ -1,5 +1,6 @@
 package niocrawler;
 
+import niocrawler.utils.HttpRequestBuilder;
 import org.junit.Test;
 
 import java.net.URI;
